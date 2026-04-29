@@ -70,6 +70,12 @@ form {
     flex-direction: column;
     gap: 8px;
 }
+.field-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
 .field.full {
     grid-column: 1 / -1;
 }
@@ -109,6 +115,87 @@ textarea {
     font-size: 12px;
     color: #64748b;
     margin-top: -2px;
+}
+.toggle-wrap {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: #475569;
+}
+.toggle-switch {
+    position: relative;
+    display: inline-flex;
+    width: 42px;
+    height: 20px;
+}
+.toggle-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+    position: absolute;
+}
+.toggle-slider {
+    position: absolute;
+    inset: 0;
+    border-radius: 999px;
+    background: #cbd5e1;
+    transition: background 0.2s ease;
+    cursor: pointer;
+}
+.toggle-slider::before {
+    content: "";
+    position: absolute;
+    left: 2px;
+    top: 2px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #fff;
+    transition: transform 0.2s ease;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.25);
+}
+.toggle-switch input:checked + .toggle-slider {
+    background: #0f6cbd;
+}
+.toggle-switch input:checked + .toggle-slider::before {
+    transform: translateX(22px);
+}
+.multi-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.multi-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 160px;
+    gap: 12px;
+    align-items: center;
+}
+.multi-actions {
+    display: flex;
+    gap: 8px;
+}
+.row-btn {
+    width: 100%;
+    padding: 12px 10px;
+    font-size: 14px;
+    box-shadow: none;
+}
+.row-btn.remove {
+    background: linear-gradient(135deg, #64748b 0%, #475569 100%);
+}
+.single-mode {
+    display: block;
+}
+.multi-mode {
+    display: none;
+}
+.is-multi .single-mode {
+    display: none;
+}
+.is-multi .multi-mode {
+    display: block;
 }
 .actions {
     margin-top: 24px;
@@ -162,6 +249,12 @@ button:disabled {
     }
     .grid {
         grid-template-columns: 1fr;
+    }
+    .multi-row {
+        grid-template-columns: 1fr;
+    }
+    .multi-actions {
+        width: 100%;
     }
 }
 </style>
@@ -217,10 +310,24 @@ button:disabled {
                 <input type="text" id="TargetArea" name="TargetArea" placeholder="请输入目标区域" required />
             </div>
 
-            <div class="field">
-                <label class="required" for="VisitorName">访客姓名</label>
-                <input type="text" id="VisitorName" name="VisitorName" placeholder="请输入访客姓名" required />
-                <div class="hint">姓名中不能包含空格。</div>
+            <div class="field full" id="visitorNameField">
+                <div class="field-header">
+                    <label class="required" for="VisitorName">访客姓名</label>
+                    <div class="toggle-wrap">
+                        <span id="multiVisitorToggleText">FALSE</span>
+                        <label class="toggle-switch" for="MultiVisitorToggle">
+                            <input type="checkbox" id="MultiVisitorToggle" />
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                </div>
+                <div class="single-mode">
+                    <input type="text" id="VisitorName" name="VisitorName" placeholder="请输入访客姓名" required />
+                </div>
+                <div class="multi-mode">
+                    <div id="visitorNameRows" class="multi-stack"></div>
+                </div>
+                <div class="hint">姓名中不能包含空格。开启开关后可录入多位访客。</div>
             </div>
 
             <div class="field">
@@ -248,10 +355,15 @@ button:disabled {
                 <div class="hint">至少 2 个字符，不能包含符号或空格。</div>
             </div>
 
-            <div class="field">
+            <div class="field full" id="visitorDocumentField">
                 <label class="required" for="VaildDocument">访客证件</label>
-                <input type="text" id="VaildDocument" name="VaildDocument" placeholder="请输入访客证件" required />
-                <div class="hint">至少 8 个字符，不能包含符号或空格。</div>
+                <div class="single-mode">
+                    <input type="text" id="VaildDocument" name="VaildDocument" placeholder="请输入访客证件" required />
+                </div>
+                <div class="multi-mode">
+                    <div id="visitorDocumentRows" class="multi-stack"></div>
+                </div>
+                <div class="hint">至少 8 个字符，不能包含符号或空格。多访客模式下需与访客姓名逐行对应。</div>
             </div>
 
             <div class="field">
@@ -272,9 +384,9 @@ button:disabled {
             </div>
 
             <div class="field full">
-                <label for="Attachments">附件</label>
-                <input type="file" id="Attachments" name="Attachments" multiple />
-                <div class="hint">可上传一个或多个附件，提交时会一并发送附件名称与内容。</div>
+                <label class="required" for="Attachments">附件</label>
+                <input type="file" id="Attachments" name="Attachments" required />
+                <div class="hint">附件为必填，且只能上传 1 个附件，提交时会一并发送附件名称与内容。</div>
             </div>
         </div>
 
@@ -287,6 +399,48 @@ button:disabled {
 
 <script>
 const url = "https://a143b6b17a06ee96bf0f7eecad2dac.13.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/b3cdcb54ce784ec59414ebd6530d2cdf/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=2TXyPnzHhuxRkmufQUIac35bcmJpHWmHhiEaf5-3wng";
+const factoryEmailMap = {
+    "上海秦桥路工厂CMC": {
+        DedicatedEmail: "cnshf.admin1@thermofisher.com",
+        ReceptionistEmail: "cnshf.admin1@thermofisher.com"
+    },
+    "上海金闽路工厂CMC2": {
+        DedicatedEmail: "cnshf.admin2@thermofisher.com",
+        ReceptionistEmail: "cici.zhou@thermofisher.com"
+    },
+    "北京工厂BJ": {
+        DedicatedEmail: "cnshf.admin3@thermofisher.com",
+        ReceptionistEmail: "fengnan.zhang@thermofisher.com"
+    },
+    "苏州泰山路158工厂SZ TS158": {
+        DedicatedEmail: "cnshf.admin5@thermofisher.com",
+        ReceptionistEmail: "alex.chen2@thermofisher.com"
+    },
+    "苏州泰山路297工厂SZ TS297": {
+        DedicatedEmail: "cnshf.admin6@thermofisher.com",
+        ReceptionistEmail: "alex.chen2@thermofisher.com"
+    },
+    "广州科学城工厂G11": {
+        DedicatedEmail: "powerbi.cmc.shanghai@thermofisher.com",
+        ReceptionistEmail: "powerbi.cmc.shanghai@thermofisher.com"
+    },
+    "广州知识城工厂G77": {
+        DedicatedEmail: "cnshf.admin7@thermofisher.com",
+        ReceptionistEmail: "cnshf.admin7@thermofisher.com"
+    },
+    "苏州Bio Park工厂C栋SZBPC": {
+        DedicatedEmail: "cnshf.admin8@thermofisher.com",
+        ReceptionistEmail: "zhijuan.zhao@thermofisher.com"
+    },
+    "苏州Bio Park工厂T栋SZBPT": {
+        DedicatedEmail: "cnshf.admin9@thermofisher.com",
+        ReceptionistEmail: "zhijuan.zhao@thermofisher.com"
+    },
+    "广州智谷工厂G99": {
+        DedicatedEmail: "cnshf.admin4@thermofisher.com",
+        ReceptionistEmail: "shiwen.xu@thermofisher.com"
+    }
+};
 
 function pad(value) {
     return String(value).padStart(2, "0");
@@ -298,6 +452,17 @@ function formatDate(date) {
         pad(date.getMonth() + 1),
         pad(date.getDate())
     ].join("-");
+}
+
+function formatDateTimeCompact(date) {
+    return [
+        date.getFullYear(),
+        pad(date.getMonth() + 1),
+        pad(date.getDate()),
+        pad(date.getHours()),
+        pad(date.getMinutes()),
+        pad(date.getSeconds())
+    ].join("");
 }
 
 function getWeekLabel(date) {
@@ -330,6 +495,122 @@ function setMessage(text, type) {
     msg.textContent = text;
 }
 
+function escapeHtml(value) {
+    return String(value).replace(/[&<>"']/g, function(char) {
+        return {
+            "&": "&amp;",
+            "<": "&lt;",
+            ">": "&gt;",
+            "\"": "&quot;",
+            "'": "&#39;"
+        }[char];
+    });
+}
+
+function isMultiVisitorMode() {
+    return document.getElementById("MultiVisitorToggle").checked;
+}
+
+function getVisitorNameInputs() {
+    return Array.from(document.querySelectorAll(".visitor-name-input"));
+}
+
+function getVisitorDocumentInputs() {
+    return Array.from(document.querySelectorAll(".visitor-document-input"));
+}
+
+function updateMultiToggleUi() {
+    const enabled = isMultiVisitorMode();
+    document.getElementById("visitorNameField").classList.toggle("is-multi", enabled);
+    document.getElementById("visitorDocumentField").classList.toggle("is-multi", enabled);
+    document.getElementById("multiVisitorToggleText").textContent = enabled ? "TRUE" : "FALSE";
+}
+
+function renderVisitorRows(nameValues, documentValues) {
+    const nameRows = document.getElementById("visitorNameRows");
+    const documentRows = document.getElementById("visitorDocumentRows");
+    const rowCount = Math.max(nameValues.length, documentValues.length, 1);
+    let nameHtml = "";
+    let documentHtml = "";
+
+    for (let index = 0; index < rowCount; index += 1) {
+        const nameValue = escapeHtml(nameValues[index] || "");
+        const documentValue = escapeHtml(documentValues[index] || "");
+        const disableRemove = rowCount === 1 ? " disabled" : "";
+
+        nameHtml +=
+            '<div class="multi-row">' +
+                '<input type="text" class="visitor-name-input" placeholder="请输入访客姓名" value="' + nameValue + '" />' +
+                '<div class="multi-actions">' +
+                    '<button type="button" class="row-btn add" data-index="' + index + '">增加</button>' +
+                    '<button type="button" class="row-btn remove" data-index="' + index + '"' + disableRemove + '>移除</button>' +
+                "</div>" +
+            "</div>";
+
+        documentHtml +=
+            '<div class="multi-row">' +
+                '<input type="text" class="visitor-document-input" placeholder="请输入访客证件" value="' + documentValue + '" />' +
+                '<div class="multi-actions">' +
+                    '<button type="button" class="row-btn add" data-index="' + index + '">增加</button>' +
+                    '<button type="button" class="row-btn remove" data-index="' + index + '"' + disableRemove + '>移除</button>' +
+                "</div>" +
+            "</div>";
+    }
+
+    nameRows.innerHTML = nameHtml;
+    documentRows.innerHTML = documentHtml;
+}
+
+function syncMultiRows(action, rowIndex) {
+    const nameValues = getVisitorNameInputs().map(function(input) {
+        return input.value;
+    });
+    const documentValues = getVisitorDocumentInputs().map(function(input) {
+        return input.value;
+    });
+
+    if (action === "add") {
+        nameValues.splice(rowIndex + 1, 0, "");
+        documentValues.splice(rowIndex + 1, 0, "");
+    } else if (action === "remove" && nameValues.length > 1) {
+        nameValues.splice(rowIndex, 1);
+        documentValues.splice(rowIndex, 1);
+    }
+
+    renderVisitorRows(nameValues, documentValues);
+}
+
+function getVisitorGroupValues() {
+    if (!isMultiVisitorMode()) {
+        return {
+            names: [document.getElementById("VisitorName").value.trim()],
+            documents: [document.getElementById("VaildDocument").value.trim()]
+        };
+    }
+
+    return {
+        names: getVisitorNameInputs().map(function(input) {
+            return input.value.trim();
+        }),
+        documents: getVisitorDocumentInputs().map(function(input) {
+            return input.value.trim();
+        })
+    };
+}
+
+function resetVisitorSections() {
+    document.getElementById("MultiVisitorToggle").checked = false;
+    renderVisitorRows([""], [""]);
+    updateMultiToggleUi();
+}
+
+function updateFactoryEmails() {
+    const factory = document.getElementById("Factory").value;
+    const mapping = factoryEmailMap[factory];
+    document.getElementById("DedicatedEmail").value = mapping ? mapping.DedicatedEmail : "";
+    document.getElementById("ReceptionistEmail").value = mapping ? mapping.ReceptionistEmail : "";
+}
+
 function initializeDefaults() {
     const now = new Date();
     const yyyy = String(now.getFullYear());
@@ -343,18 +624,21 @@ function initializeDefaults() {
     document.getElementById("EventDate").value = today;
     document.getElementById("VisitPeriod").value = today + " 09:00~" + today + " 17:00";
     document.getElementById("GUID").value = getGuid();
+    updateFactoryEmails();
 }
 
 function validateForm() {
     const factory = document.getElementById("Factory").value;
     const targetArea = document.getElementById("TargetArea").value.trim();
-    const visitorName = document.getElementById("VisitorName").value.trim();
+    const visitorGroupValues = getVisitorGroupValues();
+    const visitorNames = visitorGroupValues.names;
+    const visitorDocuments = visitorGroupValues.documents;
     const visitorType = document.getElementById("VisitorType").value;
     const visitorCompany = document.getElementById("VisitorCompany").value.trim();
-    const vaildDocument = document.getElementById("VaildDocument").value.trim();
     const hostEmployeeMail = document.getElementById("HostEmployeeMail").value.replace(/\s+/g, "");
     const contactNumber = document.getElementById("ContactNumber").value.trim();
     const purposeofAccess = document.getElementById("PurposeofAccess").value.trim();
+    const attachmentFiles = Array.from(document.getElementById("Attachments").files || []);
 
     if (!factory) {
         return "请选择工厂。";
@@ -362,10 +646,10 @@ function validateForm() {
     if (!targetArea) {
         return "请填写目标区域。";
     }
-    if (!visitorName) {
-        return "请填写访客姓名。";
+    if (visitorNames.some(function(value) { return !value; })) {
+        return "请填写所有访客姓名。";
     }
-    if (/\s/.test(visitorName)) {
+    if (visitorNames.some(function(value) { return /\s/.test(value); })) {
         return "访客姓名不得包含空格。";
     }
     if (!visitorType) {
@@ -374,7 +658,10 @@ function validateForm() {
     if (!/^[A-Za-z0-9\u4e00-\u9fa5]{2,}$/.test(visitorCompany)) {
         return "访客公司至少 2 个字符，且不得包含符号或空格。";
     }
-    if (!/^[A-Za-z0-9]{8,}$/.test(vaildDocument)) {
+    if (visitorDocuments.some(function(value) { return !value; })) {
+        return "请填写所有访客证件。";
+    }
+    if (visitorDocuments.some(function(value) { return !/^[A-Za-z0-9]{8,}$/.test(value); })) {
         return "访客证件至少 8 个字符，且不得包含符号或空格。";
     }
     if (!/^[A-Za-z0-9]+(\.[A-Za-z0-9]+)?$/.test(hostEmployeeMail) || (hostEmployeeMail.match(/\./g) || []).length > 1) {
@@ -389,6 +676,9 @@ function validateForm() {
     if (!purposeofAccess) {
         return "请填写访问目的。";
     }
+    if (attachmentFiles.length !== 1) {
+        return "请上传 1 个附件。";
+    }
 
     return "";
 }
@@ -399,8 +689,9 @@ function fileToBase64(file, titleValue, guidValue) {
         reader.onload = function() {
             const result = String(reader.result);
             const content = result.includes(",") ? result.split(",")[1] : result;
+            const fileTimestamp = formatDateTimeCompact(new Date());
             resolve({
-                name: titleValue + "_" + guidValue + "_" + file.name,
+                name: fileTimestamp + "_" + titleValue + "_TempSign_" + guidValue + file.name,
                 type: file.type || "application/octet-stream",
                 size: file.size,
                 contentBase64: content
@@ -417,6 +708,7 @@ async function buildPayload() {
     const attachmentFiles = Array.from(document.getElementById("Attachments").files || []);
     const titleValue = document.getElementById("Title").value;
     const guidValue = document.getElementById("GUID").value;
+    const visitorGroupValues = getVisitorGroupValues();
     const attachments = await Promise.all(attachmentFiles.map(function(file) {
         return fileToBase64(file, titleValue, guidValue);
     }));
@@ -429,10 +721,10 @@ async function buildPayload() {
         EventDate: document.getElementById("EventDate").value,
         Factory: document.getElementById("Factory").value,
         TargetArea: document.getElementById("TargetArea").value.trim(),
-        VisitorName: document.getElementById("VisitorName").value.trim(),
+        VisitorName: visitorGroupValues.names.join(";"),
         VisitorType: document.getElementById("VisitorType").value,
         VisitorCompany: document.getElementById("VisitorCompany").value.trim(),
-        VaildDocument: document.getElementById("VaildDocument").value.trim(),
+        VaildDocument: visitorGroupValues.documents.join(";"),
         QTY: document.getElementById("QTY").value,
         HostEmployee: document.getElementById("HostEmployee").value,
         HostEmployeeMail: hostMailPrefix.toLowerCase() + "@thermofisher.com",
@@ -451,6 +743,36 @@ async function buildPayload() {
         GUID: guidValue
     };
 }
+
+document.addEventListener("click", function(event) {
+    if (!event.target.classList.contains("row-btn")) {
+        return;
+    }
+
+    const rowIndex = Number(event.target.getAttribute("data-index"));
+    if (Number.isNaN(rowIndex)) {
+        return;
+    }
+
+    if (event.target.classList.contains("add")) {
+        syncMultiRows("add", rowIndex);
+    } else if (event.target.classList.contains("remove")) {
+        syncMultiRows("remove", rowIndex);
+    }
+});
+
+document.getElementById("MultiVisitorToggle").addEventListener("change", function() {
+    if (this.checked) {
+        const currentName = document.getElementById("VisitorName").value.trim();
+        const currentDocument = document.getElementById("VaildDocument").value.trim();
+        renderVisitorRows([currentName], [currentDocument]);
+    }
+    updateMultiToggleUi();
+});
+
+document.getElementById("Factory").addEventListener("change", function() {
+    updateFactoryEmails();
+});
 
 document.getElementById("visitorForm").addEventListener("submit", async function(event) {
     event.preventDefault();
@@ -478,8 +800,11 @@ document.getElementById("visitorForm").addEventListener("submit", async function
             throw new Error("HTTP " + response.status);
         }
 
+        const selectedFactory = payload.Factory;
         setMessage("提交成功，访客临时入场登记已发送。", "success");
+        alert("欢迎进入ThermoFisher " + selectedFactory);
         document.getElementById("visitorForm").reset();
+        resetVisitorSections();
         initializeDefaults();
     } catch (error) {
         setMessage("提交失败，请检查网络或接口配置后重试。", "error");
@@ -488,6 +813,7 @@ document.getElementById("visitorForm").addEventListener("submit", async function
     }
 });
 
+resetVisitorSections();
 initializeDefaults();
 </script>
 </body>
